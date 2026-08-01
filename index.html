@@ -56,7 +56,9 @@
             font-size: 14px;
         }
 
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
@@ -66,7 +68,9 @@
             font-family: inherit;
         }
 
-        input:focus, select:focus, textarea:focus {
+        input:focus,
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -131,8 +135,12 @@
         }
 
         @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
         }
 
         .result-container {
@@ -318,15 +326,6 @@
             min-width: 150px;
         }
 
-        .btn-download-secondary {
-            background: #6c757d;
-        }
-
-        .btn-download-secondary:hover {
-            background: #5a6268;
-            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
-        }
-
         .loading-placeholder {
             color: #999;
             font-size: 16px;
@@ -341,12 +340,40 @@
         .image-container.show {
             display: block;
         }
+
+        .cors-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .cors-warning.show {
+            display: block;
+        }
+
+        .cors-warning a {
+            color: #533f03;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎨 تولید تصویر با Agnes AI</h1>
         <p class="subtitle">از هوش مصنوعی برای خلق تصاویر شگفت‌انگیز استفاده کنید</p>
+
+        <div class="cors-warning" id="corsWarning">
+            ⚠️ <strong>نکته:</strong> برای رفع خطای CORS، لطفاً یکی از روش‌های زیر رو انجام بدید:
+            <br>
+            ۱. افزونه <a href="https://chrome.google.com/webstore/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">Allow CORS</a> رو نصب و فعال کنید
+            <br>
+            ۲. یا از مرورگر <a href="https://www.mozilla.org/firefox/" target="_blank">Firefox</a> استفاده کنید
+        </div>
 
         <div class="info-box">
             💡 <strong>نحوه استفاده:</strong> کلید API خود را از پلتفرم <a href="https://platform.agnes-ai.com" target="_blank">Agnes AI Platform</a> دریافت کنید، سپس دستور خود را بنویسید و روی دکمه کلیک کنید.
@@ -355,23 +382,15 @@
         <form id="imageForm">
             <div class="form-group">
                 <label for="apiKey">🔑 کلید API Agnes AI</label>
-                <input 
-                    type="password" 
-                    id="apiKey" 
-                    class="api-key-input"
-                    placeholder="مثلاً: agnes_sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 
-                    required
-                >
+                <input type="password" id="apiKey" class="api-key-input"
+                placeholder="مثلاً: agnes_sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required>
                 <small style="color: #888; font-size: 12px;">کلید خود را از پنل کاربری Agnes AI دریافت کنید</small>
             </div>
 
             <div class="form-group">
                 <label for="prompt">📝 دستور تولید تصویر</label>
-                <textarea 
-                    id="prompt" 
-                    placeholder="مثلاً: یک گربه فضایی با لباس فضانوردی در حال رقصیدن روی ماه"
-                    required
-                >یک گربه زیبا با عینک آفتابی و کلاه لبه‌دار، نقاشی دیجیتال، سبک کارتونی</textarea>
+                <textarea id="prompt" placeholder="مثلاً: یک گربه فضایی با لباس فضانوردی در حال رقصیدن روی ماه"
+                required>یک گربه زیبا با عینک آفتابی و کلاه لبه‌دار، نقاشی دیجیتال، سبک کارتونی</textarea>
             </div>
 
             <div class="form-group">
@@ -430,18 +449,18 @@
                 <div class="loading-placeholder" id="loadingPlaceholder">
                     ⏳ در حال تولید تصویر...
                 </div>
-                
+
                 <div class="image-container" id="imageContainer">
                     <img id="generatedImage" src="" alt="تصویر تولید شده">
                 </div>
-                
+
                 <div class="button-group" id="buttonGroup">
                     <button class="btn-download" id="downloadBtn">
                         ⬇️ دانلود تصویر
                     </button>
                 </div>
             </div>
-            
+
             <div class="success-message" id="successMessage">
                 ✅ تصویر با موفقیت تولید شد!
             </div>
@@ -487,7 +506,6 @@
             const timestamp = new Date().getTime();
             const filename = `agnes_image_${timestamp}.png`;
 
-            // اگر blob داریم ازش استفاده کن
             if (currentImageBlob) {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(currentImageBlob);
@@ -499,7 +517,6 @@
                 return;
             }
 
-            // روش دوم: دانلود از URL
             fetch(currentImageUrl)
                 .then(response => {
                     if (!response.ok) throw new Error('خطا در دریافت تصویر');
@@ -516,7 +533,6 @@
                 })
                 .catch(error => {
                     console.error('خطا در دانلود:', error);
-                    // روش آخر: دانلود با canvas
                     try {
                         const img = document.getElementById('generatedImage');
                         const canvas = document.createElement('canvas');
@@ -524,7 +540,7 @@
                         canvas.height = img.naturalHeight || 1024;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
+
                         const link = document.createElement('a');
                         link.download = filename;
                         link.href = canvas.toDataURL('image/png');
@@ -540,7 +556,7 @@
         // فرم
         document.getElementById('imageForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const apiKey = document.getElementById('apiKey').value.trim();
             const prompt = document.getElementById('prompt').value.trim();
             const model = document.querySelector('input[name="model"]:checked').value;
@@ -555,6 +571,7 @@
             const successMessage = document.getElementById('successMessage');
             const downloadBtn = document.getElementById('downloadBtn');
             const buttonGroup = document.getElementById('buttonGroup');
+            const corsWarning = document.getElementById('corsWarning');
 
             if (!apiKey) {
                 alert('⚠️ لطفاً کلید API خود را وارد کنید!');
@@ -574,12 +591,14 @@
             buttonGroup.style.display = 'none';
             errorMessage.classList.remove('show');
             successMessage.classList.remove('show');
+            corsWarning.classList.remove('show');
             currentImageUrl = '';
             currentImageBlob = null;
 
             try {
-                const API_URL = 'https://apihub.agnes-ai.com/v1/images/generations';
-                
+                // استفاده از Proxy برای رفع مشکل CORS
+                const API_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://apihub.agnes-ai.com/v1/images/generations');
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
@@ -599,7 +618,8 @@
                 try {
                     data = JSON.parse(responseText);
                 } catch (e) {
-                    throw new Error(`پاسخ غیرمعمول از سرور: ${responseText.substring(0, 200)}`);
+                    // اگه با پراکسی کار نکرد، مستقیم امتحان کن
+                    throw new Error('خطای CORS - لطفاً افزونه CORS رو نصب کنید');
                 }
 
                 if (!response.ok) {
@@ -615,14 +635,14 @@
 
                 if (imageUrl) {
                     currentImageUrl = imageUrl;
-                    
-                    // بارگذاری تصویر
+
+                    // بارگذاری تصویر با اجتناب از CORS
                     const imgResponse = await fetch(imageUrl);
                     if (!imgResponse.ok) throw new Error('خطا در بارگذاری تصویر');
-                    
+
                     currentImageBlob = await imgResponse.blob();
                     const objectUrl = URL.createObjectURL(currentImageBlob);
-                    
+
                     imageElement.src = objectUrl;
                     imageElement.onload = function() {
                         loadingPlaceholder.style.display = 'none';
@@ -631,9 +651,8 @@
                         successMessage.textContent = `✅ تصویر با موفقیت تولید شد!`;
                         successMessage.classList.add('show');
                     };
-                    
+
                     imageElement.onerror = function() {
-                        // اگر تصویر با blob لود نشد، از URL مستقیم استفاده کن
                         imageElement.src = imageUrl;
                         loadingPlaceholder.style.display = 'none';
                         imageContainer.classList.add('show');
@@ -652,7 +671,14 @@
                 console.error('خطا:', error);
                 loadingPlaceholder.style.display = 'none';
                 buttonGroup.style.display = 'none';
-                errorMessage.textContent = `❌ خطا: ${error.message}`;
+
+                // بررسی خطای CORS
+                if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    corsWarning.classList.add('show');
+                    errorMessage.textContent = `❌ خطای CORS - لطفاً افزونه Allow CORS رو نصب کنید`;
+                } else {
+                    errorMessage.textContent = `❌ خطا: ${error.message}`;
+                }
                 errorMessage.classList.add('show');
             } finally {
                 generateBtn.disabled = false;
@@ -670,6 +696,7 @@
             document.getElementById('successMessage').classList.remove('show');
             document.getElementById('buttonGroup').style.display = 'none';
             document.getElementById('imageContainer').classList.remove('show');
+            document.getElementById('corsWarning').classList.remove('show');
             currentImageUrl = '';
             currentImageBlob = null;
             document.querySelector('.model-option:first-child').click();
