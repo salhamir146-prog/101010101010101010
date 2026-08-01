@@ -25,7 +25,7 @@
             background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 700px;
+            max-width: 750px;
             width: 100%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
@@ -154,6 +154,7 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
+            position: relative;
         }
 
         .image-wrapper img {
@@ -161,6 +162,34 @@
             max-height: 500px;
             border-radius: 10px;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-download {
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+            background: #218838;
+        }
+
+        .btn-download.show {
+            display: inline-block;
+        }
+
+        .btn-download i {
+            margin-left: 8px;
         }
 
         .error-message {
@@ -277,6 +306,28 @@
         .model-option input[type="radio"] {
             display: none;
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-download {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-download-secondary {
+            background: #6c757d;
+        }
+
+        .btn-download-secondary:hover {
+            background: #5a6268;
+            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -374,6 +425,16 @@
                 <div id="loadingPlaceholder" style="color: #999;">
                     ⏳ در حال تولید تصویر...
                 </div>
+                
+                <!-- دکمه‌های دانلود -->
+                <div class="button-group" id="buttonGroup" style="display: none;">
+                    <button class="btn-download show" id="downloadBtn">
+                        ⬇️ دانلود تصویر
+                    </button>
+                    <button class="btn-download show btn-download-secondary" id="downloadHighQualityBtn">
+                        ⭐ دانلود با کیفیت بالا
+                    </button>
+                </div>
             </div>
             <div class="success-message" id="successMessage">
                 ✅ تصویر با موفقیت تولید شد!
@@ -407,6 +468,63 @@
             });
         });
 
+        // متغیر برای ذخیره لینک تصویر
+        let currentImageUrl = '';
+
+        // تابع دانلود
+        function downloadImage(url, quality = 'standard') {
+            if (!url) {
+                alert('❌ هیچ تصویری برای دانلود وجود ندارد!');
+                return;
+            }
+
+            // ایجاد نام فایل
+            const timestamp = new Date().getTime();
+            const filename = `agnes_image_${timestamp}.png`;
+
+            // روش اول: استفاده از fetch برای دانلود
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('خطا در دریافت تصویر');
+                    return response.blob();
+                })
+                .then(blob => {
+                    // ایجاد لینک دانلود
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    // آزادسازی حافظه
+                    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                })
+                .catch(error => {
+                    console.error('خطا در دانلود:', error);
+                    // روش دوم: استفاده از canvas برای دانلود
+                    try {
+                        const img = document.getElementById('generatedImage');
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // تنظیم کیفیت برای دانلود با کیفیت بالا
+                        const quality = (quality === 'high') ? 1.0 : 0.92;
+                        const link = document.createElement('a');
+                        link.download = filename;
+                        link.href = canvas.toDataURL('image/png', quality);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } catch (e) {
+                        alert('❌ خطا در دانلود تصویر. لطفاً روی تصویر کلیک راست کرده و "ذخیره تصویر" را انتخاب کنید.');
+                    }
+                });
+        }
+
         // فرم
         document.getElementById('imageForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -422,6 +540,9 @@
             const loadingPlaceholder = document.getElementById('loadingPlaceholder');
             const errorMessage = document.getElementById('errorMessage');
             const successMessage = document.getElementById('successMessage');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const downloadHighQualityBtn = document.getElementById('downloadHighQualityBtn');
+            const buttonGroup = document.getElementById('buttonGroup');
 
             // اعتبارسنجی
             if (!apiKey) {
@@ -440,11 +561,12 @@
             resultContainer.classList.add('show');
             imageElement.style.display = 'none';
             loadingPlaceholder.style.display = 'block';
+            buttonGroup.style.display = 'none';
             errorMessage.classList.remove('show');
             successMessage.classList.remove('show');
 
             try {
-                // ✅ آدرس صحیح API طبق مستندات Agnes AI
+                // آدرس صحیح API طبق مستندات Agnes AI
                 const API_URL = 'https://apihub.agnes-ai.com/v1/images/generations';
                 
                 const response = await fetch(API_URL, {
@@ -475,37 +597,40 @@
                 }
 
                 // نمایش تصویر یا تصاویر
+                let imageUrl = null;
                 if (data.data && data.data.length > 0) {
-                    // نمایش اولین تصویر
-                    const imageUrl = data.data[0].url;
-                    if (imageUrl) {
-                        imageElement.src = imageUrl;
-                        imageElement.style.display = 'block';
-                        loadingPlaceholder.style.display = 'none';
-                        successMessage.textContent = `✅ ${data.data.length} تصویر با موفقیت تولید شد!`;
-                        successMessage.classList.add('show');
-                    } else {
-                        throw new Error('آدرس تصویر در پاسخ وجود ندارد');
-                    }
+                    imageUrl = data.data[0].url;
                 } else if (data.images && data.images.length > 0) {
-                    // ساختار جایگزین
-                    const imageUrl = data.images[0].url;
-                    if (imageUrl) {
-                        imageElement.src = imageUrl;
-                        imageElement.style.display = 'block';
-                        loadingPlaceholder.style.display = 'none';
-                        successMessage.textContent = `✅ ${data.images.length} تصویر با موفقیت تولید شد!`;
-                        successMessage.classList.add('show');
-                    } else {
-                        throw new Error('آدرس تصویر در پاسخ وجود ندارد');
-                    }
+                    imageUrl = data.images[0].url;
+                }
+
+                if (imageUrl) {
+                    currentImageUrl = imageUrl;
+                    imageElement.src = imageUrl;
+                    imageElement.style.display = 'block';
+                    loadingPlaceholder.style.display = 'none';
+                    buttonGroup.style.display = 'flex';
+                    
+                    successMessage.textContent = `✅ ${data.data?.length || data.images?.length || 1} تصویر با موفقیت تولید شد!`;
+                    successMessage.classList.add('show');
+
+                    // تنظیم دکمه‌های دانلود
+                    downloadBtn.onclick = function() {
+                        downloadImage(currentImageUrl, 'standard');
+                    };
+                    
+                    downloadHighQualityBtn.onclick = function() {
+                        downloadImage(currentImageUrl, 'high');
+                    };
+
                 } else {
-                    throw new Error('ساختار پاسخ نامشخص است. کل پاسخ: ' + JSON.stringify(data));
+                    throw new Error('آدرس تصویر در پاسخ وجود ندارد');
                 }
 
             } catch (error) {
                 console.error('خطا:', error);
                 loadingPlaceholder.style.display = 'none';
+                buttonGroup.style.display = 'none';
                 errorMessage.textContent = `❌ خطا: ${error.message}`;
                 errorMessage.classList.add('show');
             } finally {
@@ -520,9 +645,12 @@
             document.getElementById('prompt').value = '';
             document.getElementById('numImages').value = '1';
             document.getElementById('generatedImage').style.display = 'none';
+            document.getElementById('generatedImage').src = '';
             document.getElementById('resultContainer').classList.remove('show');
             document.getElementById('errorMessage').classList.remove('show');
             document.getElementById('successMessage').classList.remove('show');
+            document.getElementById('buttonGroup').style.display = 'none';
+            currentImageUrl = '';
             document.querySelector('.model-option:first-child').click();
             document.querySelector('.size-option:first-child').click();
         }
