@@ -25,7 +25,7 @@
             background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 750px;
+            max-width: 800px;
             width: 100%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
@@ -162,6 +162,7 @@
             max-height: 500px;
             border-radius: 10px;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            display: block;
         }
 
         .btn-download {
@@ -186,10 +187,6 @@
 
         .btn-download.show {
             display: inline-block;
-        }
-
-        .btn-download i {
-            margin-left: 8px;
         }
 
         .error-message {
@@ -313,6 +310,7 @@
             margin-top: 15px;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
         }
 
         .btn-download {
@@ -328,6 +326,21 @@
             background: #5a6268;
             box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
         }
+
+        .loading-placeholder {
+            color: #999;
+            font-size: 16px;
+            padding: 20px;
+        }
+
+        .image-container {
+            width: 100%;
+            display: none;
+        }
+
+        .image-container.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -340,7 +353,6 @@
         </div>
 
         <form id="imageForm">
-            <!-- کلید API -->
             <div class="form-group">
                 <label for="apiKey">🔑 کلید API Agnes AI</label>
                 <input 
@@ -353,7 +365,6 @@
                 <small style="color: #888; font-size: 12px;">کلید خود را از پنل کاربری Agnes AI دریافت کنید</small>
             </div>
 
-            <!-- دستور (Prompt) -->
             <div class="form-group">
                 <label for="prompt">📝 دستور تولید تصویر</label>
                 <textarea 
@@ -363,7 +374,6 @@
                 >یک گربه زیبا با عینک آفتابی و کلاه لبه‌دار، نقاشی دیجیتال، سبک کارتونی</textarea>
             </div>
 
-            <!-- مدل -->
             <div class="form-group">
                 <label>🧠 مدل تصویر</label>
                 <div class="model-selector">
@@ -378,7 +388,6 @@
                 </div>
             </div>
 
-            <!-- سایز تصویر -->
             <div class="form-group">
                 <label>📏 سایز تصویر</label>
                 <div class="size-selector">
@@ -401,7 +410,6 @@
                 </div>
             </div>
 
-            <!-- تعداد تصاویر -->
             <div class="form-group">
                 <label for="numImages">🔢 تعداد تصاویر</label>
                 <select id="numImages">
@@ -412,30 +420,28 @@
                 </select>
             </div>
 
-            <!-- دکمه تولید -->
             <button type="submit" class="btn-generate" id="generateBtn">
                 🚀 تولید تصویر
             </button>
         </form>
 
-        <!-- بخش نمایش نتیجه -->
         <div class="result-container" id="resultContainer">
             <div class="image-wrapper" id="imageWrapper">
-                <img id="generatedImage" src="" alt="تصویر تولید شده" style="display: none;">
-                <div id="loadingPlaceholder" style="color: #999;">
+                <div class="loading-placeholder" id="loadingPlaceholder">
                     ⏳ در حال تولید تصویر...
                 </div>
                 
-                <!-- دکمه‌های دانلود -->
-                <div class="button-group" id="buttonGroup" style="display: none;">
-                    <button class="btn-download show" id="downloadBtn">
+                <div class="image-container" id="imageContainer">
+                    <img id="generatedImage" src="" alt="تصویر تولید شده">
+                </div>
+                
+                <div class="button-group" id="buttonGroup">
+                    <button class="btn-download" id="downloadBtn">
                         ⬇️ دانلود تصویر
-                    </button>
-                    <button class="btn-download show btn-download-secondary" id="downloadHighQualityBtn">
-                        ⭐ دانلود با کیفیت بالا
                     </button>
                 </div>
             </div>
+            
             <div class="success-message" id="successMessage">
                 ✅ تصویر با موفقیت تولید شد!
             </div>
@@ -468,59 +474,65 @@
             });
         });
 
-        // متغیر برای ذخیره لینک تصویر
         let currentImageUrl = '';
+        let currentImageBlob = null;
 
         // تابع دانلود
-        function downloadImage(url, quality = 'standard') {
-            if (!url) {
+        function downloadImage() {
+            if (!currentImageUrl && !currentImageBlob) {
                 alert('❌ هیچ تصویری برای دانلود وجود ندارد!');
                 return;
             }
 
-            // ایجاد نام فایل
             const timestamp = new Date().getTime();
             const filename = `agnes_image_${timestamp}.png`;
 
-            // روش اول: استفاده از fetch برای دانلود
-            fetch(url)
+            // اگر blob داریم ازش استفاده کن
+            if (currentImageBlob) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(currentImageBlob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+                return;
+            }
+
+            // روش دوم: دانلود از URL
+            fetch(currentImageUrl)
                 .then(response => {
                     if (!response.ok) throw new Error('خطا در دریافت تصویر');
                     return response.blob();
                 })
                 .then(blob => {
-                    // ایجاد لینک دانلود
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
                     link.download = filename;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    
-                    // آزادسازی حافظه
-                    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
                 })
                 .catch(error => {
                     console.error('خطا در دانلود:', error);
-                    // روش دوم: استفاده از canvas برای دانلود
+                    // روش آخر: دانلود با canvas
                     try {
                         const img = document.getElementById('generatedImage');
                         const canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth || img.width;
-                        canvas.height = img.naturalHeight || img.height;
+                        canvas.width = img.naturalWidth || 1024;
+                        canvas.height = img.naturalHeight || 1024;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         
-                        // تنظیم کیفیت برای دانلود با کیفیت بالا
-                        const quality = (quality === 'high') ? 1.0 : 0.92;
                         const link = document.createElement('a');
                         link.download = filename;
-                        link.href = canvas.toDataURL('image/png', quality);
+                        link.href = canvas.toDataURL('image/png');
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     } catch (e) {
-                        alert('❌ خطا در دانلود تصویر. لطفاً روی تصویر کلیک راست کرده و "ذخیره تصویر" را انتخاب کنید.');
+                        alert('❌ لطفاً روی تصویر کلیک راست کرده و "ذخیره تصویر" را انتخاب کنید.');
                     }
                 });
         }
@@ -537,14 +549,13 @@
             const generateBtn = document.getElementById('generateBtn');
             const resultContainer = document.getElementById('resultContainer');
             const imageElement = document.getElementById('generatedImage');
+            const imageContainer = document.getElementById('imageContainer');
             const loadingPlaceholder = document.getElementById('loadingPlaceholder');
             const errorMessage = document.getElementById('errorMessage');
             const successMessage = document.getElementById('successMessage');
             const downloadBtn = document.getElementById('downloadBtn');
-            const downloadHighQualityBtn = document.getElementById('downloadHighQualityBtn');
             const buttonGroup = document.getElementById('buttonGroup');
 
-            // اعتبارسنجی
             if (!apiKey) {
                 alert('⚠️ لطفاً کلید API خود را وارد کنید!');
                 return;
@@ -555,18 +566,18 @@
                 return;
             }
 
-            // نمایش وضعیت بارگذاری
             generateBtn.disabled = true;
             generateBtn.classList.add('loading');
             resultContainer.classList.add('show');
-            imageElement.style.display = 'none';
+            imageContainer.classList.remove('show');
             loadingPlaceholder.style.display = 'block';
             buttonGroup.style.display = 'none';
             errorMessage.classList.remove('show');
             successMessage.classList.remove('show');
+            currentImageUrl = '';
+            currentImageBlob = null;
 
             try {
-                // آدرس صحیح API طبق مستندات Agnes AI
                 const API_URL = 'https://apihub.agnes-ai.com/v1/images/generations';
                 
                 const response = await fetch(API_URL, {
@@ -583,7 +594,6 @@
                     })
                 });
 
-                // دریافت پاسخ به صورت متن برای خطایابی بهتر
                 const responseText = await response.text();
                 let data;
                 try {
@@ -593,10 +603,9 @@
                 }
 
                 if (!response.ok) {
-                    throw new Error(data.error?.message || data.message || `خطای ${response.status}: ${response.statusText}`);
+                    throw new Error(data.error?.message || data.message || `خطای ${response.status}`);
                 }
 
-                // نمایش تصویر یا تصاویر
                 let imageUrl = null;
                 if (data.data && data.data.length > 0) {
                     imageUrl = data.data[0].url;
@@ -606,22 +615,34 @@
 
                 if (imageUrl) {
                     currentImageUrl = imageUrl;
-                    imageElement.src = imageUrl;
-                    imageElement.style.display = 'block';
-                    loadingPlaceholder.style.display = 'none';
-                    buttonGroup.style.display = 'flex';
                     
-                    successMessage.textContent = `✅ ${data.data?.length || data.images?.length || 1} تصویر با موفقیت تولید شد!`;
-                    successMessage.classList.add('show');
+                    // بارگذاری تصویر
+                    const imgResponse = await fetch(imageUrl);
+                    if (!imgResponse.ok) throw new Error('خطا در بارگذاری تصویر');
+                    
+                    currentImageBlob = await imgResponse.blob();
+                    const objectUrl = URL.createObjectURL(currentImageBlob);
+                    
+                    imageElement.src = objectUrl;
+                    imageElement.onload = function() {
+                        loadingPlaceholder.style.display = 'none';
+                        imageContainer.classList.add('show');
+                        buttonGroup.style.display = 'flex';
+                        successMessage.textContent = `✅ تصویر با موفقیت تولید شد!`;
+                        successMessage.classList.add('show');
+                    };
+                    
+                    imageElement.onerror = function() {
+                        // اگر تصویر با blob لود نشد، از URL مستقیم استفاده کن
+                        imageElement.src = imageUrl;
+                        loadingPlaceholder.style.display = 'none';
+                        imageContainer.classList.add('show');
+                        buttonGroup.style.display = 'flex';
+                        successMessage.textContent = `✅ تصویر با موفقیت تولید شد!`;
+                        successMessage.classList.add('show');
+                    };
 
-                    // تنظیم دکمه‌های دانلود
-                    downloadBtn.onclick = function() {
-                        downloadImage(currentImageUrl, 'standard');
-                    };
-                    
-                    downloadHighQualityBtn.onclick = function() {
-                        downloadImage(currentImageUrl, 'high');
-                    };
+                    downloadBtn.onclick = downloadImage;
 
                 } else {
                     throw new Error('آدرس تصویر در پاسخ وجود ندارد');
@@ -639,23 +660,22 @@
             }
         });
 
-        // پاک کردن همه چیز
         function clearAll() {
             document.getElementById('apiKey').value = '';
             document.getElementById('prompt').value = '';
             document.getElementById('numImages').value = '1';
-            document.getElementById('generatedImage').style.display = 'none';
             document.getElementById('generatedImage').src = '';
             document.getElementById('resultContainer').classList.remove('show');
             document.getElementById('errorMessage').classList.remove('show');
             document.getElementById('successMessage').classList.remove('show');
             document.getElementById('buttonGroup').style.display = 'none';
+            document.getElementById('imageContainer').classList.remove('show');
             currentImageUrl = '';
+            currentImageBlob = null;
             document.querySelector('.model-option:first-child').click();
             document.querySelector('.size-option:first-child').click();
         }
 
-        // نمایش/مخفی کردن کلید API
         const apiInput = document.querySelector('.api-key-input');
         apiInput.addEventListener('focus', function() {
             this.type = 'text';
